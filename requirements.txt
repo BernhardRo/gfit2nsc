@@ -1,2 +1,4 @@
+google-auth
+oauth2client
 requests
 arrow
