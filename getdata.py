@@ -1,15 +1,13 @@
 import requests, json, arrow, hashlib, urllib, datetime
-from secret import	NS_URL, NS_SECRET,	CLIENT_ID, CLIENT_SECRET,REFRESH_TOKEN
-import csv
-import glob
-import os
+from secret import	NS_URL, NS_SECRET
+import csv, glob, os, calendar, time, argparse, sys, os.path
 import xml.etree.ElementTree
 from datetime import datetime, timedelta
-import calendar
-import time
-import argparse
-import sys
 from google.auth.transport.requests import AuthorizedSession
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from  oauth2client import client
 
 NS_AUTHOR = "Google Fit"
@@ -17,14 +15,30 @@ TIMEZONE = "Europe/Berlin"
 MIN_DURATION_SEC = 600
 
 ACCESS_TOKEN = ""
+SCOPES = ['https://www.googleapis.com/auth/fitness.activity.read']
 
-def google_login():
+def google_login():	
+	creds = None
+	# The file token.json stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('token.json'):
+		creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+	# If there are no (valid) credentials available, let the user log in.
+	if not creds or not creds.valid:
+		if creds and creds.expired and creds.refresh_token:
+			creds.refresh(Request())
+		else:
+			flow = InstalledAppFlow.from_client_secrets_file('client_secret.json', SCOPES)
+			creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+		with open('token.json', 'w') as token:
+			token.write(creds.to_json())
+	
 	GOOGLE_REVOKE_URI = "urn:ietf:wg:oauth:2.0:oob"
 	auth_endpoint = 'https://accounts.google.com/o/oauth2/v2/auth'
 	token_endpoint ='https://www.googleapis.com/oauth2/v4/token'
-	string = 'client_secret=' + CLIENT_SECRET + '&grant_type=refresh_token&refresh_token=' + REFRESH_TOKEN + '&client_id=' +CLIENT_ID
-
-	scope = "https://www.googleapis.com/auth/fitness.activity.read"
+	string = 'client_secret=' + creds.client_secret + '&grant_type=refresh_token&refresh_token=' + creds.refresh_token + '&client_id=' +creds.client_id
 
 	result = requests.post('https://www.googleapis.com/oauth2/v4/token', string, headers={
 		'Host': 'www.googleapis.com',
